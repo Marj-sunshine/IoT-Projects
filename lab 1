@@ -10,27 +10,21 @@ const byte SEG_G = 9;
 // Button pin
 const byte BUTTON_PIN = 13;
 
-// Debounce and long press constants
-const unsigned long debounceDelay = 50;
-const unsigned long longPressDuration = 2000;
-
 // State variables
-byte buttonState = HIGH;
-byte lastButtonState = HIGH;
+byte buttonState = 0;
+byte lastButtonState = 0;
 bool isRolling = false;
 byte diceValue = 1;
-unsigned long lastDebounceTime = 0;
-unsigned long buttonPressTime = 0;
 
 void setup() {
   // Initialize serial communication
   Serial.begin(9600);
-
+  
   // Set 7-segment pins as outputs
   initializeSegmentPins();
-
+  
   // Set the button pin as input
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT);
 
   // Seed the random number generator
   randomSeed(analogRead(0));
@@ -47,11 +41,11 @@ void loop() {
   if (isRolling) {
     diceValue = random(1, 7);  // Generate a number between 1 and 6
     displayNumber(diceValue);
-
+    
     // Print the dice value to the serial monitor
     Serial.print("Dice Value: ");
     Serial.println(diceValue);
-
+    
     isRolling = false;  // Ensure that the dice rolls only once per button press
   }
 }
@@ -79,28 +73,16 @@ void resetSegments() {
   digitalWrite(SEG_G, HIGH);
 }
 
-// Handles button press state, debouncing, and long press detection
+// Handles button press state and debouncing
 void handleButtonPress() {
   byte reading = digitalRead(BUTTON_PIN);
 
   if (reading != lastButtonState) {
-    lastDebounceTime = millis();
+    delay(50); // Simple debounce delay
   }
 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading == LOW && buttonState == HIGH) {
-      buttonPressTime = millis();
-    }
-
-    if (reading == HIGH && buttonState == LOW) {
-      if ((millis() - buttonPressTime) >= longPressDuration) {
-        countdown();
-      } else {
-        isRolling = true;
-      }
-    }
-
-    buttonState = reading;
+  if (reading == HIGH && lastButtonState == LOW) {
+    isRolling = true;  // Trigger dice roll when button is pressed
   }
 
   lastButtonState = reading;
@@ -109,7 +91,7 @@ void handleButtonPress() {
 // Displays the number on the 7-segment display
 void displayNumber(byte num) {
   resetSegments();
-
+  
   // Light up segments based on the dice value (LOW turns on segment)
   switch (num) {
     case 1:
@@ -154,10 +136,3 @@ void displayNumber(byte num) {
   }
 }
 
-// Countdown from 9 to 0 on the 7-segment display
-void countdown() {
-  for (int i = 9; i >= 0; i--) {
-    displayNumber(i);
-    delay(1000); // wait for 1 second
-  }
-}
